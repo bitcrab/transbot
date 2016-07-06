@@ -1,0 +1,8 @@
+[ {"client": "btc38","ACCESS_KEY":"1","SECRET_KEY":"2"},
+
+  {"client": "yunbi","ACCESS_KEY":"1","SECRET_KEY":"2"},
+
+  {"client": "bts", "ACCESS_KEY":"1","SECRET_KEY":"2"},
+
+  {"client": "mysql", "ACCESS_KEY":"1","SECRET_KEY":"2"}
+]
