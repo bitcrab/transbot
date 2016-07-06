@@ -1,11 +1,12 @@
 import json
 import yunbi.client
 import yunbi
-
+import btc38
+import btc38.client
 f = open ("config.json", 'r')
 config = json.loads(f.read())
 f.close()
-print(config)
+#print(config)
 
 for client in config:
 
@@ -17,9 +18,10 @@ for client in config:
         yunbiClient = yunbi.client.Client(client['ACCESS_KEY'], client['SECRET_KEY'])
 
     if client['client'] == 'btc38':
-        pass
+
+        btc38Client = btc38.client.Client(client['ACCESS_KEY'], client['SECRET_KEY'], client['ACCOUNT_ID'])
 
     if client['client'] == 'mysql':
         pass
 
-print(client)
+btc38Client.getMyBalance()

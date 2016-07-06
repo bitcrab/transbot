@@ -3,6 +3,9 @@ import urllib.error
 import urllib.parse
 import urllib
 import json
+import time
+import hmac
+import hashlib
 
 BASE_URL = 'https://yunbi.com/'
 

@@ -1,0 +1,100 @@
+import urllib.request
+import urllib.error
+import urllib.parse
+import urllib
+import json
+import time
+import hashlib
+
+BASE_URL = 'http://api.btc38.com/v1/'
+
+#API_BASE_PATH = '/v1'
+API_PATH_DICT = {
+    # GET
+
+    #market code required in url as {market}.json
+    'tickers' : 'ticker.php?',
+    #'tickers' : 'ticker.php?c=%s&mk_type=%s',
+
+    'depth'   :'depth.php?',
+    #'depth'   :'depth.php?c=%s&mk_type=%s',
+
+    #order id required in url query string as '?id={id}'
+    'orders': 'getOrderList.php',
+
+    #market required in url query string as '?market={market}'
+    'trades': 'trades.php?',
+    #'trades': 'trades.php?c=%s&mk_type=%s&tid=%s',
+
+    #POST
+
+    'balance': 'getMyBalance.php',
+
+    'submitorder':'submitOrder.php',
+
+    'cancelorder': 'cancelOrder.php',
+
+    #market required in url query string as '?market={market}'
+    'mytrades': 'getMyTradeList.php',
+
+
+}
+
+
+
+def get_api_path(name):
+    path_pattern = API_PATH_DICT[name]
+    return  BASE_URL + path_pattern
+
+
+
+class Client():
+
+    def __init__(self, access_key=None, secret_key=None, account_id=None):
+        if access_key and secret_key:
+            self.access_key = access_key
+            self.secret_key = secret_key
+            self.mdt = "%s_%s_%s" % (access_key,account_id,secret_key)
+        else:
+            pass
+            #from conf import ACCESS_KEY, SECRET_KEY
+            #self.auth = Auth(ACCESS_KEY, SECRET_KEY)
+
+    def request(self, name, data=None, c=None, mk_type = None, tid=None ):
+
+        headers = {'User-Agent': 'Mozilla/4.0'}
+        url = get_api_path(name)
+
+        if c:
+            query = "c=%s&mk_type=%s" % (c, mk_type)
+            if tid:
+                query += "&tid=%s" % tid
+            url += query
+
+
+        if data:
+            data = urllib.parse.urlencode(data)
+            data = data.encode('utf-8')
+
+        req = urllib.request.Request(url=url, data=None, headers=headers) if not data else urllib.request.Request(url=url, data=data, headers=headers)
+        resp = urllib.request.urlopen(req)
+        data = resp.readlines()
+        print(data)
+        return data
+
+    def getMyBalance(self):
+        timestamp, MD5 = self.getMD5()
+        params = {'key': self.access_key, 'time': timestamp, 'md5': MD5}
+        return self.request("balance",params)
+
+
+    def getMD5(self):
+        stamp = int(time.time())
+        mdt = "%s_%s" % (self.mdt, stamp)
+        #print(mdt)
+        md5 = hashlib.md5()
+        md5.update(mdt.encode('utf-8'))
+        #print(md5.hexdigest())
+        return stamp, md5.hexdigest()
+
+
