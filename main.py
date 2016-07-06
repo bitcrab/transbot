@@ -1,4 +1,5 @@
 import json
+import yunbi.client
 import yunbi
 
 f = open ("config.json", 'r')
@@ -12,6 +13,7 @@ for client in config:
         pass
 
     if client['client'] == 'yunbi':
+
         yunbiClient = yunbi.client.Client(client['ACCESS_KEY'], client['SECRET_KEY'])
 
     if client['client'] == 'btc38':
@@ -19,3 +21,5 @@ for client in config:
 
     if client['client'] == 'mysql':
         pass
+
+print(client)

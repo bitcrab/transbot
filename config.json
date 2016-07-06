@@ -1,0 +1,8 @@
+[ {"client": "btc38","ACCESS_KEY":"1","SECRET_KEY":"2"},
+
+  {"client": "yunbi","ACCESS_KEY":"fwrWjuHe6sKJnOdnkvLGHruMXhoKOtE6sI59V49G","SECRET_KEY":"DVKqRFxxChj2QPq4pKnIQc6ufAKxclt98qteKNNC"},
+
+  {"client": "bts", "ACCESS_KEY":"1","SECRET_KEY":"2"},
+
+  {"client": "mysql", "ACCESS_KEY":"1","SECRET_KEY":"2"}
+]
