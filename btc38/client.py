@@ -34,6 +34,8 @@ API_PATH_DICT = {
 
     'cancelorder': 'cancelOrder.php',
 
+    'myorders': 'getOrderList.php',
+
     #market required in url query string as '?market={market}'
     'mytrades': 'getMyTradeList.php',
 
@@ -87,6 +89,28 @@ class Client():
         params = {'key': self.access_key, 'time': timestamp, 'md5': MD5}
         return self.request("balance",params)
 
+    def submitOrder(self, type, mk_type, price, amount, coinname):
+        timestamp, MD5 = self.getMD5()
+        params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'type':type, 'mk_type':mk_type, 'price':price, 'amount':amount, 'coinname':coinname}
+        return self.request("submitorder", params)
+
+    def cancelOrder(self,mk_type,order_id):
+        timestamp, MD5 = self.getMD5()
+        params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'mk_type': mk_type, 'order_id': order_id}
+        return self.request("cancelorder", params)
+
+    def getOrderList(self,coinname = None):
+        timestamp, MD5 = self.getMD5()
+        params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'coinname':coinname}
+        result =  self.request("myorders", params)
+        return json.loads(result[0].decode('utf-8'))
+
+
+    def getMyTradeList(self,mk_type='cny',coinname='bts',page=1):
+        timestamp, MD5 = self.getMD5()
+        params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'mk_type': mk_type, 'coinname': coinname, 'page':page}
+        result = self.request("mytrades", params)
+        return json.loads(result[0].decode('utf-8'))
 
     def getMD5(self):
         stamp = int(time.time())

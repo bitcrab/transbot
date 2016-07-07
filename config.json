@@ -2,7 +2,9 @@
 
   {"client": "yunbi","ACCESS_KEY":"fwrWjuHe6sKJnOdnkvLGHruMXhoKOtE6sI59V49G","SECRET_KEY":"DVKqRFxxChj2QPq4pKnIQc6ufAKxclt98qteKNNC"},
 
-  {"client": "bts", "ACCESS_KEY":"1","SECRET_KEY":"2"},
+  {"client": "bts", "ACCESS_KEY":"1","SECRET_KEY":"5KfSRygyqDfUyeUfSbFt8qM7XNA4iGb35QogRJAYza6Z9erPiK8", "ACCOUNT":"transwiser.test", "WITNESS_URL": "wss://bitshares.dacplay.org:8089/ws"},
 
-  {"client": "mysql", "ACCESS_KEY":"1","SECRET_KEY":"2"}
+  {"client": "mysql", "host":"rdscov8y5jpiumh0x51v0.mysql.rds.aliyuncs.com","database":"transbot","user":"botadmin","password":"$0607@Transwiser"}
+
+
 ]
