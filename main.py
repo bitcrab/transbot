@@ -39,6 +39,12 @@ for client in config:
         mysqlClient = pymysql.connect(host=client['host'],user = client['user'], password=client['password'], database = client['database'])
 
 
+def marketmaker():
+    a = btc38Client.getTickers()
+    print(a)
+
+marketmaker()
+
 """
 for n in list(range(30)):
 
@@ -66,6 +72,7 @@ print(btsClient)
 balance = btsClient.returnBalances()
 print(balance)
 
+this is for product
 
 
 

@@ -81,23 +81,30 @@ class Client():
         req = urllib.request.Request(url=url, data=None, headers=headers) if not data else urllib.request.Request(url=url, data=data, headers=headers)
         resp = urllib.request.urlopen(req)
         data = resp.readlines()
-        print(data)
+        #print(data)
         return data
+
+    def getTickers(self,mk_type='cny',c='bts'):
+        result = self.request('tickers',c=c, mk_type = mk_type)
+        return json.loads(result[0].decode('utf-8'))
 
     def getMyBalance(self):
         timestamp, MD5 = self.getMD5()
         params = {'key': self.access_key, 'time': timestamp, 'md5': MD5}
-        return self.request("balance",params)
+        result =  self.request("balance",params)
+        return json.loads(result[0].decode('utf-8'))
 
-    def submitOrder(self, type, mk_type, price, amount, coinname):
+    def submitOrder(self, type, mk_type, price, amount, coinname):#type: 1 for buy, and 2 for sell
         timestamp, MD5 = self.getMD5()
         params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'type':type, 'mk_type':mk_type, 'price':price, 'amount':amount, 'coinname':coinname}
-        return self.request("submitorder", params)
+        result =  self.request("submitorder", params)
+        return json.loads(result[0].decode('utf-8'))
 
     def cancelOrder(self,mk_type,order_id):
         timestamp, MD5 = self.getMD5()
         params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'mk_type': mk_type, 'order_id': order_id}
-        return self.request("cancelorder", params)
+        result = self.request("cancelorder", params)
+        return json.loads(result[0].decode('utf-8'))
 
     def getOrderList(self,coinname = None):
         timestamp, MD5 = self.getMD5()
@@ -115,10 +122,8 @@ class Client():
     def getMD5(self):
         stamp = int(time.time())
         mdt = "%s_%s" % (self.mdt, stamp)
-        #print(mdt)
         md5 = hashlib.md5()
         md5.update(mdt.encode('utf-8'))
-        #print(md5.hexdigest())
         return stamp, md5.hexdigest()
 
 

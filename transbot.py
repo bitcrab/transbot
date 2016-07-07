@@ -21,6 +21,7 @@ class Config():
 class Transbots(object):
     def __init__(self,config):
         self.dex = GrapheneExchange(config, safe_mode=False)
+        GrapheneExchange()
 
         QueueManager.register('get_task_queue')
         QueueManager.register('get_result_queue')
