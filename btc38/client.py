@@ -88,6 +88,10 @@ class Client():
         result = self.request('tickers',c=c, mk_type = mk_type)
         return json.loads(result[0].decode('utf-8'))
 
+    def getDepth(self, mk_type='cny', c='bts'):
+        result = self.request('depth', c=c, mk_type=mk_type)
+        return json.loads(result[0].decode('utf-8'))
+
     def getMyBalance(self):
         timestamp, MD5 = self.getMD5()
         params = {'key': self.access_key, 'time': timestamp, 'md5': MD5}
@@ -97,19 +101,21 @@ class Client():
     def submitOrder(self, type, mk_type, price, amount, coinname):#type: 1 for buy, and 2 for sell
         timestamp, MD5 = self.getMD5()
         params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'type':type, 'mk_type':mk_type, 'price':price, 'amount':amount, 'coinname':coinname}
-        result =  self.request("submitorder", params)
-        return json.loads(result[0].decode('utf-8'))
+        return  self.request("submitorder", params)
+
 
     def cancelOrder(self,mk_type,order_id):
         timestamp, MD5 = self.getMD5()
         params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'mk_type': mk_type, 'order_id': order_id}
-        result = self.request("cancelorder", params)
-        return json.loads(result[0].decode('utf-8'))
+        return self.request("cancelorder", params)
+        #return json.loads(result[0].decode('utf-8'))
 
     def getOrderList(self,coinname = None):
         timestamp, MD5 = self.getMD5()
         params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'coinname':coinname}
         result =  self.request("myorders", params)
+        if result == [b'no_order']:
+            return []
         return json.loads(result[0].decode('utf-8'))
 
 
