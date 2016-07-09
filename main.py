@@ -45,6 +45,7 @@ class MarketMaker(object):
             if client['client'] == 'mysql':
                 self.mysqlClient = pymysql.connect(host=client['host'], user=client['user'], password=client['password'],
                                               database=client['database'])
+        self.currentDEXMiddlePrice = 0
 
     def dexTicker2General(self,dexTicker):
         ticker = {"vol": dexTicker["quoteVolume"], "buy": dexTicker["highestBid"], "last": dexTicker["last"],
@@ -107,9 +108,12 @@ class MarketMaker(object):
             highOrderBook = dexOrderBook
 
         if not highex:
+            #btc38MiddlePrice = (btc38Ticker["buy"] + btc38Ticker["sell"]) / 2
+            #if abs(btc38MiddlePrice - self.currentDEXMiddlePrice) > minGap*1.5:
             return 0
         else:
             self.cancelAllOrders()
+            print("have removed the orders with potential to be arbitraged!")
             time.sleep(4)
             btc38Ticker = self.btc38Client.getTickers()['ticker']
             dexTicker = self.dexTicker2General(self.btsClient.returnTicker()['BTS_CNY'])
@@ -133,7 +137,7 @@ class MarketMaker(object):
                 highOrderBook = dexOrderBook
 
             if not highex:
-                print("have removed the orders with potential to be arbitraged!")
+
                 return 1
 
         BidOrder = {"type":"buy", "volume":lowOrderBook["asks"][0][1], "price":lowTicker['sell'],"index":0}
@@ -148,7 +152,7 @@ class MarketMaker(object):
                     AskOrder["price"] = highOrderBook["bids"][AskOrder['index']][0]
             else:
                 BidOrder["index"] += 1
-                if lowOrderBook["asks"][BidOrder['index']][0] < (AskOrder["price"] + minGap):
+                if lowOrderBook["asks"][BidOrder['index']][0] < (AskOrder["price"] - minGap):
                     BidOrder["volume"] += lowOrderBook["asks"][BidOrder["index"]][1]
                     BidOrder["price"] = lowOrderBook["asks"][BidOrder["index"]][0]
         BidOrder["volume"] = min(BidOrder["volume"], AskOrder["volume"])
@@ -179,6 +183,8 @@ class MarketMaker(object):
             print(AskOrder[n])
             print(self.executeOrder("dex",AskOrder[n]))
             print(AskOrder[n])
+        self.currentDEXMiddlePrice = middlePrice
+        return middlePrice
 
     #@asyncio.coroutine
     def run(self, loopnumber=20):
