@@ -10,7 +10,6 @@ from grapheneapi.grapheneclient import GrapheneClient
 import pprint
 import time
 from datetime import datetime, timedelta
-import hashlib
 
 
 class TradeClient(object):
@@ -51,8 +50,6 @@ class TradeClient(object):
 class MarketMaker(object):
     def __init__(self):
         self.client = TradeClient()
-        self.currentDEXMiddlePrice = 0
-        self.makingvolume = 50000
 
     def dexTicker2General(self, dexTicker):
         ticker = {"vol": dexTicker["quoteVolume"], "buy": dexTicker["highestBid"], "last": dexTicker["last"],
@@ -91,8 +88,7 @@ class MarketMaker(object):
         btc38Ticker = self.client.btc38Client.getTickers()['ticker']
         dexTicker = self.dexTicker2General(self.client.btsClient.returnTicker()['BTS_CNY'])
 
-        middlePrice = (btc38Ticker['buy'] + btc38Ticker['sell'])/2
-        minGap = middlePrice*0.003
+        minGap = (btc38Ticker['buy'] + btc38Ticker['sell']) * 0.0015
 
         btc38OrderBook = self.client.btc38Client.getDepth('bts')
         dexOrderBook = self.client.btsClient.returnOrderBook("BTS_CNY")['BTS_CNY']
@@ -115,23 +111,10 @@ class MarketMaker(object):
             highTicker = dexTicker
             highOrderBook = dexOrderBook
 
-        if not highex: # no arbitrage chance, then check whether need to regernate oders
-            dexopenorders = self.client.btsClient.returnOpenOrders("BTS_CNY")["BTS_CNY"]
-            sumOpenOrderAmount = 0
-            for order in dexopenorders:
-                sumOpenOrderAmount += order["amount"]
-            priceshift = middlePrice - self.currentDEXMiddlePrice
-            if (abs(priceshift) >minGap*2) or (sumOpenOrderAmount<self.makingvolume*2.31):
-                #if the market price shifted too much or some orders is filled enough, then regernate orders
-                self.cancelAllOrders()
-                print("deleted orders for regeneration as price shifted too much or too much order filled, middle price = %s, price shift = %s, minGap = %s, left order volums = %s BTS." % (middlePrice, priceshift, minGap, sumOpenOrderAmount))
-                #self.generateMakerOrder()
-                return 1
-            else:
-                return 0
-        else:#arbitrage chance, check more
+        if not highex:
+            return 0
+        else:
             self.cancelAllOrders()
-            print("have removed the orders with potential to be arbitraged!")
             time.sleep(4)
             btc38Ticker = self.client.btc38Client.getTickers()['ticker']
             dexTicker = self.dexTicker2General(self.client.btsClient.returnTicker()['BTS_CNY'])
@@ -155,6 +138,7 @@ class MarketMaker(object):
                 highOrderBook = dexOrderBook
 
             if not highex:
+                print("have removed the orders with potential to be arbitraged!")
                 return 1
 
         BidOrder = {"type": "buy", "volume": lowOrderBook["asks"][0][1], "price": lowTicker['sell'], "index": 0}
@@ -170,7 +154,7 @@ class MarketMaker(object):
                     AskOrder["price"] = highOrderBook["bids"][AskOrder['index']][0]
             else:
                 BidOrder["index"] += 1
-                if lowOrderBook["asks"][BidOrder['index']][0] < (AskOrder["price"] - minGap):
+                if lowOrderBook["asks"][BidOrder['index']][0] < (AskOrder["price"] + minGap):
                     BidOrder["volume"] += lowOrderBook["asks"][BidOrder["index"]][1]
                     BidOrder["price"] = lowOrderBook["asks"][BidOrder["index"]][0]
         BidOrder["volume"] = min(BidOrder["volume"], AskOrder["volume"])
@@ -183,148 +167,53 @@ class MarketMaker(object):
         print(BidOrder)
         return 1
 
-    def generateMakerOrder(self, exchanges=['dex', 'btc38']):
+    def generateMakerOrder(self, exchanges=['dex', 'btc38'], volume=40000):
         btc38Ticker = self.client.btc38Client.getTickers()['ticker']
         dexTicker = self.dexTicker2General(self.client.btsClient.returnTicker()['BTS_CNY'])
         middlePrice = (btc38Ticker["buy"] + btc38Ticker["sell"]) / 2
         settlePrice = self.client.btsClient.returnTicker()['BTS_CNY']['settlement_price']
-        bidPrice = max((btc38Ticker["buy"] ), middlePrice * 0.995)
-        askPrice = max(settlePrice * 1.01, middlePrice * 1.012)
-        BidOrder = [{"type": "buy", "volume": self.makingvolume, "price": bidPrice},
-                    {"type": "buy", "volume": self.makingvolume, "price": bidPrice * 0.99}]
-        AskOrder = [{"type": "sell", "volume": self.makingvolume * 0.3, "price": askPrice},
-                    {"type": "sell", "volume": self.makingvolume, "price": askPrice * 1.01}]
+        bidPrice = max((btc38Ticker["buy"] + 0.00009), middlePrice * 0.995)
+        askPrice = max(settlePrice * 1.01, middlePrice * 1.015)
+        BidOrder = [{"type": "buy", "volume": volume, "price": bidPrice},
+                    {"type": "buy", "volume": volume, "price": bidPrice * 0.99}]
+        AskOrder = [{"type": "sell", "volume": volume * 0.3, "price": askPrice},
+                    {"type": "sell", "volume": volume, "price": askPrice * 1.01}]
         for n in [0, 1]:
             print("try to create dex bid order: %s" % BidOrder[n])
+            print(BidOrder[n])
             print(self.executeOrder("dex", BidOrder[n]))
-            print("try to create dex ask order: %s" % AskOrder[n])
+            print("try to create dex ask order:")
+            print(AskOrder[n])
             print(self.executeOrder("dex", AskOrder[n]))
-        self.currentDEXMiddlePrice = middlePrice
-        print("currentDexMiddlePrice = %s" % self.currentDEXMiddlePrice)
-        return
+            print(AskOrder[n])
 
-
-    #@asyncio.coroutine
-    async def run(self):
-        while True:
-            try:
-                btc38Ticker = self.client.btc38Client.getTickers()['ticker']
-                self.currentDEXMiddlePrice = (btc38Ticker["buy"] + btc38Ticker["sell"]) / 2
-                while True:
+    # @asyncio.coroutine
+    def run(self, loopnumber=20):
+        try:
+            while True:
+                n = 0
+                for n in list(range(loopnumber)):
                     if (self.clearTicker()):
                         self.generateMakerOrder()
+                        n = 0
                     else:
-                        print("now there is no chance for arbitrage,  %s" % datetime.now())
-                        await asyncio.sleep(5)
-            except:
-                print("some error happened")
+                        print("now there is no chance for arbitrage, n=%s in %s circles  %s" % (
+                        n, loopnumber, datetime.now()))
+                    time.sleep(20)
+                    n += 1
+                self.cancelAllOrders(["dex"])
+                self.generateMakerOrder()
+        except:
+            print("some error happened")
 
 
-
-class DataProcess():
-    def __init__(self):
-        self.client = TradeClient()
-
-
-    def strUTC2strBJTime(self,utime):
-        UTCTime = datetime.strptime(utime,'%Y-%m-%dT%H:%M:%S')
-        BJTime = UTCTime + timedelta(hours=8)
-        return datetime.strftime(BJTime,'%Y-%m-%d %H:%M:%S')
+a = MarketMaker()
+print(a.client.btc38Client.submitOrder(1,"cny",0.0316,100,"bts"))
+#print(json.dumps(a.client.btsClient.returnTradeHistory("BTS_CNY",1000)["BTS_CNY"],indent =4))
+#print(b)
 
 
-    def updateDatabase(self):
-        dexdata = self.client.btsClient.returnTradeHistory("BTS_CNY",limit=200)["BTS_CNY"]
-        #btc38data = self.client.btc38Client.getMyTradeList()
-        btc38data =[]
-        pages=2
-        for n in list(range(pages)):
-                btc38data.append(self.client.btc38Client.getMyTradeList(page=n))
-        try:
-            with self.client.mysqlClient.cursor() as cursor:
-                for record in dexdata:
-                    record["date"]=self.strUTC2strBJTime(record["date"])
-                    initialdata = record["date"]+record["type"]+str(record["amount"])+str(record["total"])
-                    md5 = hashlib.md5()
-                    md5.update(initialdata.encode("utf-8"))
-                    hashid = md5.hexdigest()
-                    paramstr = "('%s', '%s', '%s', '%f', '%f', '%s', '%s')" % (
-                        hashid, 'dex',  'bts',record['rate'], float(record['amount']), record['date'],record['type'])
-                    sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % hashid
-                    print(sql)
-                    cursor.execute(sql)
-                    self.client.mysqlClient.commit()
-                #print(json.dumps(btc38data,indent=4))
-
-                for n in list(range(pages)):
-                    for record in btc38data[n]:
-                        if record["buyer_id"] == "3664":
-                            record["type"] = "buy"
-                        else:
-                            record["type"] = "sell"
-
-                        paramstr = "('%s', '%s', '%s', '%f', '%f', '%s', '%s')" % (
-                            record['id'], 'btc38', record['coinname'],
-                            float(record['price']), float(record['volume']), record['time'], record["type"])
-                        sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % record['id']
-
-                        print(sql)
-
-                        cursor.execute(sql)
-                        self.client.mysqlClient.commit()
-
-        finally:
-            # mysqlClient.close()
-            pass
-
-#@asyncio.coroutine
-async def DataUpdate():
-    while True:
-        dataprocesser = DataProcess()
-        dataprocesser.updateDatabase()
-        await asyncio.sleep(300)
-
-
-
-
-#dataprocessor = DataProcess()
-if __name__ == "__main__":
-    maker = MarketMaker()
-    loop = asyncio.get_event_loop()
-    tasks = [maker.run(), DataUpdate()]
-
-    loop.run_until_complete(asyncio.wait(tasks))
-    # loop.run_forever()
-    loop.close()
-
-"""
-
-
-while True:
-    try:
-       maker = MarketMaker()
-       maker.run()
-    except:
-       print
-
-    print(maker.clearTicker())
-    print(datetime.now())
-    time.sleep(50)
-
-
-#Askorder = {'volume': 10, 'index': 4, 'type': 'buy', 'price': 0.027248999973145567}
-#maker.executeOrder('btc38',Askorder)
-
-print(btsClient.cancel_asks_less_than("BTS_CNY",50))
-print(btsClient.cancel_bids_more_than("BTS_CNY",0.027))
-print(btsClient.cancel_asks_less_than("CNY_BTS",50))
-print(btsClient.cancel_bids_more_than("CNY_BTS",0.027))
-print(btsClient.get_my_asks_less_than("BTS_CNY",50))
-print(btsClient.get_my_asks_less_than("CNY_BTS",50))
-print(btsClient.markets)
-if __name__ == '__main__':
-    pass
-    #dex   = btsClient
-    #print(json.dumps(dex.returnTradeHistory("CNY_BTS"),indent=4))
+ #print(json.dumps(dex.returnTradeHistory("CNY_BTS"),indent=4))
     #print(json.dumps(dex.returnTicker()['BTS_CNY'],indent=4))
     #print(dexTicker2General(dex.returnTicker()['BTS_CNY']))
     #print(json.dumps(dex.return24Volume(),indent=4))
@@ -334,25 +223,3 @@ if __name__ == '__main__':
     #print(json.dumps(dex.buy("CNY_BTS", 0.001, 10),indent=4))
 #print(json.dumps(btsClient.sell("CNY_BTS", 1/0.028, 1),indent=4))
 #print(json.dumps(btsClient.sell("BTS_CNY", 0.028, 10),indent=4))
-    #a="dex.returnTicker()['BTS_CNY']"
-    #eval(a)
-    #print(json.dumps(btc38Client.getDepth('bts'),indent=4))
-    #print(json.dumps(btc38Client.getTickers('bts'), ))#indent=4))
-
-
-
-
-EX_DICT = {
-    "btc38Ticker"     : "btc38Client.getTickers()['ticker']",
-    "btc38OrderBook"  : "btc38Client.getDepth('bts')",
-    "dexTicker"       : "dex.returnTicker()['BTS_CNY']",
-    "dexOrderBook"    : "dex.returnOrderBook('BTS_CNY')"
-
-
-}
-
-
-
-
-
-"""
