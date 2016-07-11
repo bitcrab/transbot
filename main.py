@@ -6,8 +6,6 @@ import btc38.client
 import pymysql.cursors
 from grapheneexchange import GrapheneExchange
 import asyncio
-from grapheneapi.grapheneclient import GrapheneClient
-import pprint
 import time
 from datetime import datetime, timedelta
 import hashlib
@@ -125,7 +123,6 @@ class MarketMaker(object):
                 #if the market price shifted too much or some orders is filled enough, then regernate orders
                 self.cancelAllOrders()
                 print("deleted orders for regeneration as price shifted too much or too much order filled, middle price = %s, price shift = %s, minGap = %s, left order volums = %s BTS." % (middlePrice, priceshift, minGap, sumOpenOrderAmount))
-                #self.generateMakerOrder()
                 return 1
             else:
                 return 0
@@ -154,7 +151,7 @@ class MarketMaker(object):
                 highTicker = dexTicker
                 highOrderBook = dexOrderBook
 
-            if not highex:
+            if not highex: #no arbitrage after removing own orders
                 return 1
 
         BidOrder = {"type": "buy", "volume": lowOrderBook["asks"][0][1], "price": lowTicker['sell'], "index": 0}
@@ -203,8 +200,6 @@ class MarketMaker(object):
         print("currentDexMiddlePrice = %s" % self.currentDEXMiddlePrice)
         return
 
-
-    #@asyncio.coroutine
     async def run(self):
         while True:
             try:
@@ -233,12 +228,13 @@ class DataProcess():
 
 
     def updateDatabase(self):
+        #timely fetch data from btc38 and dex and write to database
         dexdata = self.client.btsClient.returnTradeHistory("BTS_CNY",limit=200)["BTS_CNY"]
-        #btc38data = self.client.btc38Client.getMyTradeList()
         btc38data =[]
         pages=2
         for n in list(range(pages)):
                 btc38data.append(self.client.btc38Client.getMyTradeList(page=n))
+
         try:
             with self.client.mysqlClient.cursor() as cursor:
                 for record in dexdata:
@@ -253,7 +249,6 @@ class DataProcess():
                     print(sql)
                     cursor.execute(sql)
                     self.client.mysqlClient.commit()
-                #print(json.dumps(btc38data,indent=4))
 
                 for n in list(range(pages)):
                     for record in btc38data[n]:
@@ -270,89 +265,22 @@ class DataProcess():
                         print(sql)
 
                         cursor.execute(sql)
-                        self.client.mysqlClient.commit()
+                        print(self.client.mysqlClient.commit())
 
         finally:
-            # mysqlClient.close()
             pass
 
-#@asyncio.coroutine
 async def DataUpdate():
     while True:
         dataprocesser = DataProcess()
         dataprocesser.updateDatabase()
         await asyncio.sleep(300)
 
-
-
-
-#dataprocessor = DataProcess()
 if __name__ == "__main__":
     maker = MarketMaker()
     loop = asyncio.get_event_loop()
     tasks = [maker.run(), DataUpdate()]
 
     loop.run_until_complete(asyncio.wait(tasks))
-    # loop.run_forever()
     loop.close()
 
-"""
-
-
-while True:
-    try:
-       maker = MarketMaker()
-       maker.run()
-    except:
-       print
-
-    print(maker.clearTicker())
-    print(datetime.now())
-    time.sleep(50)
-
-
-#Askorder = {'volume': 10, 'index': 4, 'type': 'buy', 'price': 0.027248999973145567}
-#maker.executeOrder('btc38',Askorder)
-
-print(btsClient.cancel_asks_less_than("BTS_CNY",50))
-print(btsClient.cancel_bids_more_than("BTS_CNY",0.027))
-print(btsClient.cancel_asks_less_than("CNY_BTS",50))
-print(btsClient.cancel_bids_more_than("CNY_BTS",0.027))
-print(btsClient.get_my_asks_less_than("BTS_CNY",50))
-print(btsClient.get_my_asks_less_than("CNY_BTS",50))
-print(btsClient.markets)
-if __name__ == '__main__':
-    pass
-    #dex   = btsClient
-    #print(json.dumps(dex.returnTradeHistory("CNY_BTS"),indent=4))
-    #print(json.dumps(dex.returnTicker()['BTS_CNY'],indent=4))
-    #print(dexTicker2General(dex.returnTicker()['BTS_CNY']))
-    #print(json.dumps(dex.return24Volume(),indent=4))
-    #print(json.dumps(btsClient.returnOrderBook("BTS_CNY"),indent=4))
-    #print(json.dumps(dex.returnBalances(),indent=4))
-    #print(json.dumps(dex.returnOpenOrders("all"),indent=4))
-    #print(json.dumps(dex.buy("CNY_BTS", 0.001, 10),indent=4))
-#print(json.dumps(btsClient.sell("CNY_BTS", 1/0.028, 1),indent=4))
-#print(json.dumps(btsClient.sell("BTS_CNY", 0.028, 10),indent=4))
-    #a="dex.returnTicker()['BTS_CNY']"
-    #eval(a)
-    #print(json.dumps(btc38Client.getDepth('bts'),indent=4))
-    #print(json.dumps(btc38Client.getTickers('bts'), ))#indent=4))
-
-
-
-
-EX_DICT = {
-    "btc38Ticker"     : "btc38Client.getTickers()['ticker']",
-    "btc38OrderBook"  : "btc38Client.getDepth('bts')",
-    "dexTicker"       : "dex.returnTicker()['BTS_CNY']",
-    "dexOrderBook"    : "dex.returnOrderBook('BTS_CNY')"
-
-
-}
-
-
-
-
-
-"""
