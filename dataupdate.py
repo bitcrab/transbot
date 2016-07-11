@@ -10,7 +10,7 @@ from grapheneapi.grapheneclient import GrapheneClient
 import pprint
 import time
 from datetime import datetime, timedelta
-
+import hashlib
 
 class TradeClient(object):
     
@@ -211,34 +211,128 @@ class DataProcess():
     def __init__(self):
         self.client = TradeClient()
 
-    def tradeHistory2StdFormat(self,data):
-        for n in list(range(len(data))):
-            data[n]["date"] += timedelta(hours=8)
-        return data
 
+    def strUTC2strBJTime(self,utime):
+        UTCTime = datetime.strptime(utime,'%Y-%m-%dT%H:%M:%S')
+        BJTime = UTCTime + timedelta(hours=8)
+        return datetime.strftime(BJTime,'%Y-%m-%d %H:%M:%S')
 
 
     def updateDatabase(self):
-        dexdata = self.tradeHistory2StdFormat(self.client.btsClient.returnTradeHistory("BTS_CNY")["BTS_CNY"])
+        dexdata = self.client.btsClient.returnTradeHistory("BTS_CNY",limit=1000)["BTS_CNY"]
+        #btc38data = self.client.btc38Client.getMyTradeList()
+        btc38data =[]
+        pages=2
+        for n in list(range(pages)):
+                btc38data.append(self.client.btc38Client.getMyTradeList(page=n))
+        try:
+            with self.client.mysqlClient.cursor() as cursor:
+                for record in dexdata:
+                    record["date"]=self.strUTC2strBJTime(record["date"])
+                    initialdata = record["date"]+record["type"]+str(record["amount"])+str(record["total"])
+                    md5 = hashlib.md5()
+                    md5.update(initialdata.encode("utf-8"))
+                    hashid = md5.hexdigest()
+                    paramstr = "('%s', '%s', '%s', '%f', '%f', '%s', '%s')" % (
+                        hashid, 'dex',  'bts',record['rate'], float(record['amount']), record['date'],record['type'])
+                    sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % hashid
+                    print(sql)
+                    cursor.execute(sql)
+                    self.client.mysqlClient.commit()
+                #print(json.dumps(btc38data,indent=4))
 
-        return 1
+                for n in list(range(pages)):
+                    for record in btc38data[n]:
+                        if record["buyer_id"] == "3664":
+                            record["type"] = "buy"
+                        else:
+                            record["type"] = "sell"
+
+                        paramstr = "('%s', '%s', '%s', '%f', '%f', '%s', '%s')" % (
+                            record['id'], 'btc38', record['coinname'],
+                            float(record['price']), float(record['volume']), record['time'], record["type"])
+                        sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % record['id']
+
+                        print(sql)
+
+                        cursor.execute(sql)
+                        self.client.mysqlClient.commit()
+
+        finally:
+            # mysqlClient.close()
+            pass
 
 
 
-dataprocesser = DataProcess()
+
+while True:
+    dataprocesser=DataProcess()
+    dataprocesser.updateDatabase()
+    time.sleep(500)
 #dataprocesser.updateDatabase()
-dataprocesser.updateDatabase()
 #print(json.dumps(dataprocesser.client.btsClient.returnTradeHistory("BTS_CNY"),indent=4))
 
+"""
+time = "2016-07-10T19:40:06"
+test = datetime.strptime(time,'%Y-%m-%dT%H:%M:%S')
+print(test+timedelta(hours=8))
+print(test)
+pass
 #loop = asyncio.get_event_loop()
 #loop.run_until_complete(asyncio.wait(maker.run()))
 #loop.run_forever()
 
-"""
+
+
+       print (json.dumps(dexdata,indent =4))
+        return 1
+
+    {
+        "date": "2016-07-10T12:04:57",
+        "amount": 15000.0,
+        "total": 483.1449,
+        "type": "sell",
+        "rate": 0.03220966
+    },
+    {
+
+    for n in list(range(30)):
+
+        trades = self.client.btsClient.returnTradeHistory()
+        try:
+            with mysqlClient.cursor() as cursor:
+                for record in trades:
+                    print(record)
+                    paramstr = "('%s', '%s', '%s', '%s', '%s', '%f', '%f', '%s')" % (
+                        record['id'], 'btc38', record['buyer_id'], record['seller_id'], record['coinname'],
+                        float(record['price']), float(record['volume']), record['time'])
+                    sql = "INSERT INTO `botdb` (`id`,`exchange`,`buyer_id`,`seller_id`,`asset`,`price`,`volume`,`time`) VALUES " + paramstr
+                    print(sql)
+
+                    cursor.execute(sql)
+                mysqlClient.commit()
+
+        finally:
+            # mysqlClient.close()
+            pass
+
+
+
 while True:
     print(maker.clearTicker())
     print(datetime.now())
     time.sleep(50)
+
+def tradeHistory2StdFormat(self,data):
+        for n in list(range(len(data))):
+            strUTCtime = datetime(data[n]["date"])#
+            UTCtime = datetime.strptime(strUTCtime,'%Y-%m-%dT%H:%M:%S')
+            BJTime = UTCtime + timedelta(hours=8)
+            datetime(data[n]["date"]) =
+
+            #BJtime = UTCtime + timedelta(hours=8)
+
+        return data
 
 
 #Askorder = {'volume': 10, 'index': 4, 'type': 'buy', 'price': 0.027248999973145567}
