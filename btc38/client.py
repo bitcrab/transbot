@@ -80,9 +80,9 @@ class Client():
 
         req = urllib.request.Request(url=url, data=None, headers=headers) if not data else urllib.request.Request(url=url, data=data, headers=headers)
         resp = urllib.request.urlopen(req)
-        data = resp.readlines()
+        result = resp.readlines()
         #print(data)
-        return data
+        return result
 
     def getTickers(self,mk_type='cny',c='bts'):
         result = self.request('tickers',c=c, mk_type = mk_type)

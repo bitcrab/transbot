@@ -45,9 +45,7 @@ API_PATH_DICT = {
 
 
 
-def get_api_path(name):
-    path_pattern = API_PATH_DICT[name]
-    return path_pattern % API_BASE_PATH
+
 
 
 
@@ -60,6 +58,10 @@ class Client():
             pass
             #from conf import ACCESS_KEY, SECRET_KEY
             #self.auth = Auth(ACCESS_KEY, SECRET_KEY)
+
+    def get_api_path(self,name):
+        path_pattern = API_PATH_DICT[name]
+        return path_pattern % API_BASE_PATH
 
     def get(self, path, params=None, sigrequest=False):
         verb = "GET"

@@ -34,6 +34,8 @@ class TradeClient(object):
                 btsConfig.account = client['ACCOUNT']
                 btsConfig.wif = client['SECRET_KEY']
 
+                self.btsConfig = btsConfig
+
                 self.btsClient = GrapheneExchange(btsConfig, safe_mode=False)
 
             if client['client'] == 'yunbi':
@@ -46,6 +48,9 @@ class TradeClient(object):
                 self.mysqlClient = pymysql.connect(host=client['host'], user=client['user'],
                                                    password=client['password'],
                                                    database=client['database'])
+    def renewDEXconn(self):
+        self.btsClient = GrapheneExchange(self.btsConfig, safe_mode=False)
+
 
 
 class MarketMaker(object):
@@ -72,6 +77,12 @@ class MarketMaker(object):
                 return json.dumps(self.client.btsClient.buy("BTS_CNY", Order["price"], Order["volume"]))
             if Order["type"] == "sell":
                 return json.dumps(self.client.btsClient.sell("BTS_CNY", Order["price"], Order["volume"]))
+        if exchange == "yunbi":
+            params = {'market': 'btscny', 'side': 'sell', 'volume': 1.0, 'price': 0.031}
+            #res = client.post(get_api_path('orders'), params)
+            #print(res)
+
+            pass
 
     def cancelAllOrders(self, exchanges=['dex', 'btc38'], quote="bts"):
         for ex in exchanges:
@@ -206,22 +217,23 @@ class MarketMaker(object):
 
     #@asyncio.coroutine
     async def run(self):
+        btc38Ticker = self.client.btc38Client.getTickers()['ticker']
+        self.currentDEXMiddlePrice = (btc38Ticker["buy"] + btc38Ticker["sell"]) / 2
         while True:
-            try:
-                btc38Ticker = self.client.btc38Client.getTickers()['ticker']
-                self.currentDEXMiddlePrice = (btc38Ticker["buy"] + btc38Ticker["sell"]) / 2
-                while True:
-                    if (self.clearTicker()):
-                        self.generateMakerOrder()
-                    else:
-                        print("now there is no chance for arbitrage,  %s" % datetime.now())
-                        await asyncio.sleep(5)
-            except:
-                print("some error happened")
+            self.client.renewDEXconn()
+            if (self.clearTicker()):
+                self.generateMakerOrder()
+            else:
+                print("now there is no chance for arbitrage,  %s" % datetime.now())
+                await asyncio.sleep(5)
+                print ("awake from sleep for 5 seconds")
+            #except:
+            #    print("some error happened in market maker, restart")
+            #    self.client.renewDEXconn()
+        #return
 
 
-
-class DataProcess():
+class DataProcess(object):
     def __init__(self):
         self.client = TradeClient()
 
@@ -233,12 +245,17 @@ class DataProcess():
 
 
     def updateDatabase(self):
-        dexdata = self.client.btsClient.returnTradeHistory("BTS_CNY",limit=200)["BTS_CNY"]
+        dexdata = self.client.btsClient.returnTradeHistory("BTS_CNY",limit=100)["BTS_CNY"]
         #btc38data = self.client.btc38Client.getMyTradeList()
         btc38data =[]
-        pages=2
+        pages=1
         for n in list(range(pages)):
-                btc38data.append(self.client.btc38Client.getMyTradeList(page=n))
+            btc38data.append(self.client.btc38Client.getMyTradeList(page=n))
+
+        params = {'market': 'btscny', 'limit': 50}
+        yunbidata =self.client.yunbiClient.get(self.client.yunbiClient.get_api_path("my_trades"), params, True)
+
+
         try:
             with self.client.mysqlClient.cursor() as cursor:
                 for record in dexdata:
@@ -266,15 +283,81 @@ class DataProcess():
                             record['id'], 'btc38', record['coinname'],
                             float(record['price']), float(record['volume']), record['time'], record["type"])
                         sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % record['id']
-
-                        print(sql)
-
                         cursor.execute(sql)
                         self.client.mysqlClient.commit()
+
+
+                for record in yunbidata:
+                    type = "buy" if record["side"] == "bid" else "sell"
+                    paramstr = "('%s', '%s', '%s', '%f', '%f', '%s', '%s')" % (record["id"], 'yunbi', 'bts', float(record['price']), float(record['volume']), str(datetime.fromtimestamp(record['at'])), type)
+                    sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % record["id"]
+                    cursor.execute(sql)
+                    self.client.mysqlClient.commit()
+
+                today = datetime.now()
+                tomorrow = today + timedelta(hours=24)
+
+                strToday = str(today)[:10] + ' 00:00:00'
+                strTomorrow = str(tomorrow)[:10] + ' 00:00:00'
+
+                for ex in ['dex','btc38','yunbi']:
+                    initialdata = strToday + ex + "BTSCNY"
+                    md5 = hashlib.md5()
+                    md5.update(initialdata.encode("utf-8"))
+                    hashid = md5.hexdigest()
+
+                    paramstrbuy = "(SELECT SUM(`volume`) FROM botdb WHERE `exchange` = '%s' and `type` = 'buy' and `time` >= '%s' and time < '%s')" % (ex, strToday, strTomorrow)
+                    paramstrpaid = "(SELECT SUM(`volume`*`price`) FROM botdb WHERE `exchange` = '%s' and `type` = 'buy' and `time` >= '%s' and time < '%s')" % (ex, strToday, strTomorrow)
+                    paramstsell = "(SELECT SUM(`volume`) FROM botdb WHERE `exchange` = '%s' and `type` = 'sell' and `time` >= '%s' and time < '%s')" % (ex, strToday, strTomorrow)
+                    paramsreceived = "(SELECT SUM(`volume`*`price`) FROM botdb WHERE `exchange` = '%s' and `type` = 'sell' and `time` >= '%s' and time < '%s')" % (ex, strToday, strTomorrow)
+
+                    paramstr = "('%s', '%s', '%s', '%s', '%s', %s, %s, %s, %s)" % (hashid, ex, strToday, "BTS", "CNY", paramstrbuy, paramstrpaid, paramstsell, paramsreceived)
+                    sql = "REPLACE INTO `dailyreport`(`id`, `exchange`, `date`, `quote`, `base`, `buy`, `paid`, `sell`, `received`)VALUES" + paramstr
+                    print(sql)
+                    cursor.execute(sql)
+                    self.client.mysqlClient.commit()
+
+                sql = "UPDATE `dailyreport` SET `netpaid` = `paid` - `received`, `netbuy` = `buy` - `sell`, `avebuyprice` = `paid`/`buy`, `avesellprice` = `received`/`sell`"
+                print(sql)
+                cursor.execute(sql)
+                self.client.mysqlClient.commit()
+
+                #sql = "SELECT SUM(`netbuy`) FROM dailyreport as 'net'"
+                #data = cursor.execute(sql)
+                #print(cursor.fetchall(data))
+                #selff.client.mysqlClient.commit())
 
         finally:
             # mysqlClient.close()
             pass
+
+    async def run(self):
+        while True:
+            self.client.renewDEXconn()
+            self.updateDatabase()
+            await asyncio.sleep(40)
+        #for n in list(range(5)):
+        #    self.client.renewDEXconn()
+         #await asyncio.sleep(40)
+        #    n += 1
+
+
+
+
+
+#dataprocessor = DataProcess()
+maker = MarketMaker()
+processer = DataProcess()
+#maker.run()
+
+loop = asyncio.get_event_loop()
+tasks = [maker.run(), processer.run()]
+loop.run_until_complete(asyncio.wait(tasks))
+loop.run_forever()
+loop.close()
+
+
+"""
 
 #@asyncio.coroutine
 async def DataUpdate():
@@ -282,22 +365,6 @@ async def DataUpdate():
         dataprocesser = DataProcess()
         dataprocesser.updateDatabase()
         await asyncio.sleep(300)
-
-
-
-
-#dataprocessor = DataProcess()
-if __name__ == "__main__":
-    maker = MarketMaker()
-    loop = asyncio.get_event_loop()
-    tasks = [maker.run(), DataUpdate()]
-
-    loop.run_until_complete(asyncio.wait(tasks))
-    # loop.run_forever()
-    loop.close()
-
-"""
-
 
 while True:
     try:
