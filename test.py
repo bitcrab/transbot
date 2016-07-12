@@ -206,9 +206,23 @@ class MarketMaker(object):
         except:
             print("some error happened")
 
+yunbi = TradeClient().yunbiClient
+params = {'market': 'btscny','limit':5}
+print(json.dumps(yunbi.get(yunbi.get_api_path("my_trades"),params, True),indent=4))
 
-a = MarketMaker()
-print(a.client.btc38Client.submitOrder(1,"cny",0.0316,100,"bts"))
+at=1468144021
+print(datetime.fromtimestamp(at))
+
+today = datetime.now()
+tomorrow = today + timedelta(hours=24)
+
+strToday = str(today)[:10]+' 00:00:00'
+strTomorrow = str(tomorrow)[:10]+' 00:00:00'
+
+print(strToday)
+print(strTomorrow)
+#a = MarketMaker()
+#print(a.client.btc38Client.submitOrder(1,"cny",0.0316,100,"bts"))
 #print(json.dumps(a.client.btsClient.returnTradeHistory("BTS_CNY",1000)["BTS_CNY"],indent =4))
 #print(b)
 

@@ -84,7 +84,7 @@ class MarketMaker(object):
 
             pass
 
-    def cancelAllOrders(self, exchanges=['dex', 'btc38'], quote="bts"):
+    def cancelAllOrders(self, exchanges=['dex'], quote="bts"):
         for ex in exchanges:
             if ex == "dex":
                 orders = self.client.btsClient.returnOpenOrders("BTS_CNY")['BTS_CNY']
@@ -132,7 +132,7 @@ class MarketMaker(object):
             for order in dexopenorders:
                 sumOpenOrderAmount += order["amount"]
             priceshift = middlePrice - self.currentDEXMiddlePrice
-            if (abs(priceshift) >minGap*2) or (sumOpenOrderAmount<self.makingvolume*2.31):
+            if (abs(priceshift) >minGap*2) or (sumOpenOrderAmount<self.makingvolume*2.4):
                 #if the market price shifted too much or some orders is filled enough, then regernate orders
                 self.cancelAllOrders()
                 print("deleted orders for regeneration as price shifted too much or too much order filled, middle price = %s, price shift = %s, minGap = %s, left order volums = %s BTS." % (middlePrice, priceshift, minGap, sumOpenOrderAmount))
@@ -203,7 +203,7 @@ class MarketMaker(object):
         askPrice = max(settlePrice * 1.01, middlePrice * 1.012)
         BidOrder = [{"type": "buy", "volume": self.makingvolume, "price": bidPrice},
                     {"type": "buy", "volume": self.makingvolume, "price": bidPrice * 0.99}]
-        AskOrder = [{"type": "sell", "volume": self.makingvolume * 0.3, "price": askPrice},
+        AskOrder = [{"type": "sell", "volume": self.makingvolume * 0.6, "price": askPrice},
                     {"type": "sell", "volume": self.makingvolume, "price": askPrice * 1.01}]
         for n in [0, 1]:
             print("try to create dex bid order: %s" % BidOrder[n])
@@ -215,22 +215,17 @@ class MarketMaker(object):
         return
 
 
-    #@asyncio.coroutine
-    async def run(self):
-        btc38Ticker = self.client.btc38Client.getTickers()['ticker']
-        self.currentDEXMiddlePrice = (btc38Ticker["buy"] + btc38Ticker["sell"]) / 2
-        while True:
-            self.client.renewDEXconn()
+
+    def run(self):
+        try:
             if (self.clearTicker()):
                 self.generateMakerOrder()
             else:
                 print("now there is no chance for arbitrage,  %s" % datetime.now())
-                await asyncio.sleep(5)
-                print ("awake from sleep for 5 seconds")
-            #except:
-            #    print("some error happened in market maker, restart")
-            #    self.client.renewDEXconn()
-        #return
+                time.sleep(5)
+        except:
+            print("MarketMaker received except information, restart")
+            self.run()
 
 
 class DataProcess(object):
@@ -331,33 +326,32 @@ class DataProcess(object):
             # mysqlClient.close()
             pass
 
-    async def run(self):
-        while True:
-            self.client.renewDEXconn()
-            self.updateDatabase()
-            await asyncio.sleep(40)
-        #for n in list(range(5)):
-        #    self.client.renewDEXconn()
-         #await asyncio.sleep(40)
-        #    n += 1
+    def run(self):
+        #self.client.renewDEXconn()
+        self.updateDatabase()
 
 
-
-
-
-#dataprocessor = DataProcess()
 maker = MarketMaker()
 processer = DataProcess()
-#maker.run()
+processer.client = maker.client
+btc38Ticker = maker.client.btc38Client.getTickers()['ticker']
+maker.currentDEXMiddlePrice = (btc38Ticker["buy"] + btc38Ticker["sell"]) / 2
 
+while True:
+    for n in list(range(100)):
+        maker.run()
+    processer.run()
+
+
+
+"""
+#maker.run()
+maker.
 loop = asyncio.get_event_loop()
 tasks = [maker.run(), processer.run()]
 loop.run_until_complete(asyncio.wait(tasks))
 loop.run_forever()
 loop.close()
-
-
-"""
 
 #@asyncio.coroutine
 async def DataUpdate():
