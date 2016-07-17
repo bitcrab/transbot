@@ -7,6 +7,7 @@ import time
 import hmac
 import hashlib
 
+
 BASE_URL = 'https://yunbi.com/'
 
 API_BASE_PATH = '/api/v2'
@@ -43,50 +44,92 @@ API_PATH_DICT = {
     'multi_orders': '%s/orders/multi.json',
 }
 
-
-
-
-
-
-
 class Client():
 
     def __init__(self, access_key=None, secret_key=None):
         if access_key and secret_key:
             self.auth = Auth(access_key, secret_key)
         else:
-            pass
-            #from conf import ACCESS_KEY, SECRET_KEY
-            #self.auth = Auth(ACCESS_KEY, SECRET_KEY)
+            print("provide key please")
+
+    def getBalance(self):
+        result = self.get('members', sigrequest=True)
+        balance = {}
+        for record in result["accounts"]:
+            balance[record["currency"]] = float(record["balance"])
+            balance[record["currency"]+"_locked"] = float(record["locked"])
+        return balance
+
+    def getTickers(self,market='btscny'):
+        ticker = self.get('tickers', {'market': market})["ticker"]
+        result = {"vol": float(ticker["vol"]), "buy": float(ticker["buy"]),
+                  "last": float(ticker["last"]),
+                  "sell": float(ticker["sell"])}
+        return result
+
+    def getOpenOrders(self,market='btscny'):
+        orders = self.get('orders', {'market': market}, True)
+        openorders=[]
+        for order in orders:
+            openorders.append({"amount": float(order["volume"]), "type": order["side"], "price": float(order["price"]),"id": order["id"],})
+        return openorders
+
+    def getOrderBook(self,market='btscny'):
+        orderbooks = self.get('order_book', {'market': market}, True)
+        if orderbooks["asks"][0]["id"] == 202429485 and orderbooks["asks"][0]["price"] == "0.0326":#just fix the bug
+            orderbooks["asks"].pop(0)
+        asks = []
+        for record in orderbooks["asks"]:
+            asks.append([float(record['price']), float(record['volume'])])
+
+        bids = []
+        for record in orderbooks["bids"]:
+            bids.append([float(record['price']), float(record['volume'])])
+        return {"bids": bids, "asks": asks}
+
+    def getMyTradeList(self,market='btscny'):
+        return self.get('trades', {'market': market}, True)
+
+    def submitOrder(self,params):
+        return self.client.yunbiClient.post('orders', params)
+
+    #def submitOrder(self):
 
     def get_api_path(self,name):
         path_pattern = API_PATH_DICT[name]
         return path_pattern % API_BASE_PATH
 
-    def get(self, path, params=None, sigrequest=False):
+    def get(self, name, params=None, sigrequest=False):
         verb = "GET"
+        path =self.get_api_path(name)
+        if "%s" in path:
+            path = path % params["market"]
         if  sigrequest:
             signature, query = self.auth.sign_params(verb, path, params)
             query = self.auth.urlencode(query)
             url = "%s%s?%s&signature=%s" % (BASE_URL, path, query, signature)
         else:
+            #path = path % params["market"]
             url = "%s%s?" % (BASE_URL, path)
-        resp = urllib.request.urlopen(url)
+        resp = urllib.request.urlopen(url,timeout=5)
         data = resp.readlines()
+        resp.close()
         if len(data):
             return json.loads(data[0].decode('utf-8'))
 
 
-    def post(self, path, params=None):
+    def post(self, name, params=None):
         verb = "POST"
+        path = self.get_api_path(name)
         print (params)
         signature, data = self.auth.sign_params(verb, path, params)
         url = "%s%s" % (BASE_URL, path)
         data.update({"signature":signature})
         data = urllib.parse.urlencode(data)
         data = data.encode('utf-8')
-        resp = urllib.request.urlopen(url, data)
+        resp = urllib.request.urlopen(url, data,timeout=5)
         data = resp.readlines()
+        resp.close()
         if len(data):
             return json.loads(data[0].decode('utf-8'))
 
