@@ -46,10 +46,6 @@ class TradeClient(object):
                 self.mysqlClient = pymysql.connect(host=client['host'], user=client['user'],
                                                    password=client['password'],
                                                    database=client['database'])
-    def renewDEXconn(self):
-        #self.btsClient = GrapheneExchange(self.btsConfig, safe_mode=False)
-        #print(self.btsClient)
-        print("for test, nothing to do while renew dex conn")
 
 class MarketMaker(object):
     def __init__(self):
@@ -111,7 +107,6 @@ class MarketMaker(object):
         if exchange == "yunbi":
             params = {'market': 'btscny', 'side': Order["type"], 'volume': Order["volume"], 'price': Order["price"]}
             return self.client.yunbiClient.post('orders', params)
-            #print(res)
 
 
     def cancelAllOrders(self, exchanges=['dex'], quote="bts"):
@@ -235,12 +230,10 @@ class MarketMaker(object):
 
             else:
                 for member in marketInfo:
-                    #print("begin check whether need order regernation")
                     if member["exname"] in ["dex","yunbi"]:#check whether the ex need market making
                         sumOpenOrderAmount = 0
                         for order in member["openorders"]:
                             sumOpenOrderAmount += order["amount"]
-                        #marketmiddleprice = (member["ticker"]["sell"]+member["ticker"]["buy"])/2
                         priceshift = middlePrice - self.currentmiddlePrice[member["exname"]]
                         if (abs(priceshift) > minGap * 2) or (sumOpenOrderAmount < self.makingvolume * 3 ):
                             try:
@@ -274,7 +267,6 @@ class MarketMaker(object):
                     print("try to create dex ask order: %s" % AskOrder[n])
                     print(self.executeOrder("dex", AskOrder[n]))
                 self.currentmiddlePrice["dex"] = middlePrice
-                # self.currentdexMiddlePrice = middlePrice
                 print("current middle prrice in dex = %s" % middlePrice)
             if "yunbi" in exchanges:
                 bidPrice = max(btc38Ticker["buy"] * 0.997, middlePrice * 0.995)

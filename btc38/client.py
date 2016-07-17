@@ -8,7 +8,6 @@ import hashlib
 
 BASE_URL = 'http://api.btc38.com/v1/'
 
-#API_BASE_PATH = '/v1'
 API_PATH_DICT = {
     # GET
 
@@ -58,9 +57,8 @@ class Client():
             self.secret_key = secret_key
             self.mdt = "%s_%s_%s" % (access_key,account_id,secret_key)
         else:
-            pass
-            #from conf import ACCESS_KEY, SECRET_KEY
-            #self.auth = Auth(ACCESS_KEY, SECRET_KEY)
+            print("please provide correct keys")
+
 
     def request(self, name, data=None, c=None, mk_type = None, tid=None ):
 
@@ -82,7 +80,6 @@ class Client():
         resp = urllib.request.urlopen(req,timeout=5)
         result = resp.readlines()
         resp.close()
-        #print(data)
         return result
 
     def getTickers(self,mk_type='cny',c='bts'):
@@ -109,7 +106,6 @@ class Client():
         timestamp, MD5 = self.getMD5()
         params = {'key': self.access_key, 'time': timestamp, 'md5': MD5, 'mk_type': mk_type, 'order_id': order_id}
         return self.request("cancelorder", params)
-        #return json.loads(result[0].decode('utf-8'))
 
     def getOrderList(self,coinname = None):
         timestamp, MD5 = self.getMD5()

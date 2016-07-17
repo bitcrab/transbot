@@ -93,8 +93,6 @@ class Client():
     def submitOrder(self,params):
         return self.client.yunbiClient.post('orders', params)
 
-    #def submitOrder(self):
-
     def get_api_path(self,name):
         path_pattern = API_PATH_DICT[name]
         return path_pattern % API_BASE_PATH
