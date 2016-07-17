@@ -158,7 +158,6 @@ class MarketMaker(object):
             marketInfo = self.fetchMarketInfo()
         except Exception as e:
             print("fetchMarketInfo not executed correctly at the first place", e)
-            #self.client.renewDEXconn()
             time.sleep(5)
             return 0
 

@@ -107,7 +107,6 @@ class Client():
             query = self.auth.urlencode(query)
             url = "%s%s?%s&signature=%s" % (BASE_URL, path, query, signature)
         else:
-            #path = path % params["market"]
             url = "%s%s?" % (BASE_URL, path)
         resp = urllib.request.urlopen(url,timeout=5)
         data = resp.readlines()
