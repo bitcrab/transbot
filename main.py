@@ -157,7 +157,6 @@ class MarketMaker(object):
             marketInfo = self.fetchMarketInfo()
         except Exception as e:
             print("fetchMarketInfo not executed correctly at the first place", e)
-            #self.client.renewDEXconn()
             time.sleep(5)
             return 0
 
@@ -253,7 +252,6 @@ class MarketMaker(object):
             btc38Ticker = self.client.btc38Client.getTickers()['ticker']
             middlePrice = (btc38Ticker["buy"] + btc38Ticker["sell"]) / 2
             if "dex" in exchanges:
-                #settlePrice = self.client.btsClient.returnTicker()['BTS_CNY']['settlement_price']
                 bidPrice = max((btc38Ticker["buy"]), middlePrice * 0.995)
                 askPrice = max(btc38Ticker["sell"], middlePrice * 1.005)  # max(settlePrice * 1.01, middlePrice * 1.012)
                 BidOrder = [{"market": "BTS_CNY", "type": "buy", "volume": self.makingvolume, "price": bidPrice},
@@ -267,7 +265,6 @@ class MarketMaker(object):
                     print("try to create dex ask order: %s" % AskOrder[n])
                     print(self.executeOrder("dex", AskOrder[n]))
                 self.currentmiddlePrice["dex"] = middlePrice
-                # self.currentdexMiddlePrice = middlePrice
                 print("current middle prrice in dex = %s" % middlePrice)
             if "yunbi" in exchanges:
                 bidPrice = max(btc38Ticker["buy"] * 0.997, middlePrice * 0.995)
@@ -339,9 +336,7 @@ class DataProcess(object):
                     paramstr = "('%s', '%s', '%s', '%f', '%f', '%s', '%s')" % (
                         record['id'], 'btc38', record['coinname'],
                         float(record['price']), float(record['volume']), record['time'], record["type"])
-                    sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % \
-                                                                                                                              record[
-                                                                                                                                  'id']
+                    sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % record['id']
                     cursor.execute(sql)
                     self.client.mysqlClient.commit()
 
@@ -350,9 +345,7 @@ class DataProcess(object):
                 paramstr = "('%s', '%s', '%s', '%f', '%f', '%s', '%s')" % (
                 record["id"], 'yunbi', 'bts', float(record['price']), float(record['volume']),
                 str(datetime.fromtimestamp(record['at'])), type)
-                sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % \
-                                                                                                                          record[
-                                                                                                                              "id"]
+                sql = "INSERT INTO `botdb` (`id`,`exchange`,`asset`,`price`,`volume`,`time`,`type`) VALUES " + paramstr + "ON DUPLICATE KEY UPDATE `id` = '%s'" % record["id"]
                 cursor.execute(sql)
                 self.client.mysqlClient.commit()
 
