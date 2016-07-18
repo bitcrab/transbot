@@ -7,3 +7,5 @@
 Bitshares DEX python API用例说明参见这里：http://python-graphenelib.readthedocs.io/en/latest/
 
 本程序直接 python3 main.py 运行，未提供安装选项。
+
+所有代码基于python 3.5.1开发
