@@ -8,7 +8,6 @@ from grapheneexchange import GrapheneExchange
 import time
 from datetime import datetime, timedelta
 import hashlib
-import sys
 
 
 class TradeClient(object):
@@ -106,8 +105,8 @@ class MarketMaker(object):
 
         if exchange == "yunbi":
             params = {'market': 'btscny', 'side': Order["type"], 'volume': Order["volume"], 'price': Order["price"]}
-            return self.client.yunbiClient.post('orders', params)
-
+            res =  self.client.yunbiClient.post('orders',params)
+            return res
 
     def cancelAllOrders(self, exchanges=['dex'], quote="bts"):
         for ex in exchanges:
@@ -158,6 +157,7 @@ class MarketMaker(object):
             marketInfo = self.fetchMarketInfo()
         except Exception as e:
             print("fetchMarketInfo not executed correctly at the first place", e)
+            #self.client.renewDEXconn()
             time.sleep(5)
             return 0
 
@@ -183,7 +183,6 @@ class MarketMaker(object):
                 except:
                     print("exception while canceling orders or fetching MarketInfo at the second place")
                     time.sleep(5)
-                    self.client.renewDEXconn()
 
                 askList = sorted(marketInfo, key=lambda x: x["ticker"]["sell"])
                 bidList = sorted(marketInfo, key=lambda x: x["ticker"]["buy"], reverse=True)
@@ -229,12 +228,14 @@ class MarketMaker(object):
 
             else:
                 for member in marketInfo:
+                    #print("begin check whether need order regernation")
                     if member["exname"] in ["dex","yunbi"]:#check whether the ex need market making
                         sumOpenOrderAmount = 0
                         for order in member["openorders"]:
                             sumOpenOrderAmount += order["amount"]
+                        #marketmiddleprice = (member["ticker"]["sell"]+member["ticker"]["buy"])/2
                         priceshift = middlePrice - self.currentmiddlePrice[member["exname"]]
-                        if (abs(priceshift) > minGap * 2) or (sumOpenOrderAmount < self.makingvolume * 3 ):
+                        if (abs(priceshift) > minGap * 2) or (sumOpenOrderAmount < self.makingvolume * 3.01 ):
                             try:
                                 self.cancelAllOrders([member["exname"]])
                                 print(
@@ -266,13 +267,14 @@ class MarketMaker(object):
                     print("try to create dex ask order: %s" % AskOrder[n])
                     print(self.executeOrder("dex", AskOrder[n]))
                 self.currentmiddlePrice["dex"] = middlePrice
+                # self.currentdexMiddlePrice = middlePrice
                 print("current middle prrice in dex = %s" % middlePrice)
             if "yunbi" in exchanges:
                 bidPrice = max(btc38Ticker["buy"] * 0.997, middlePrice * 0.995)
-                askPrice = min(btc38Ticker["sell"] * 1.005, middlePrice * 1.005)
+                askPrice = max(btc38Ticker["sell"], middlePrice * 1.005)
                 BidOrder = [{"type": "buy", "volume": self.makingvolume, "price": bidPrice},
                             {"type": "buy", "volume": self.makingvolume, "price": bidPrice * 0.99}]
-                AskOrder = [{"type": "sell", "volume": self.makingvolume * 0.7, "price": askPrice},
+                AskOrder = [{"type": "sell", "volume": self.makingvolume,"price": askPrice},
                             {"type": "sell", "volume": self.makingvolume, "price": askPrice * 1.01}]
                 for n in [0, 1]:
                     print("try to create yunbi bid order: %s" % BidOrder[n])
@@ -390,22 +392,8 @@ class DataProcess(object):
     def run(self):
         try:
             self.updateDatabase()
-        except ConnectionError as e:
-            print("connection error while running data processing:", e)
-        except EOFError as e:
-            print("EOF error while running data processing:", e)
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()  # most recent (if any) by default
-            traceback_details = {
-                'filename': exc_traceback.tb_frame.f_code.co_filename,
-                'lineno': exc_traceback.tb_lineno,
-                'name': exc_traceback.tb_frame.f_code.co_name,
-                'type': exc_type.__name__,
-                'message': exc_value,  # or see traceback._some_str()
-            }
-
-            del (exc_type, exc_value, exc_traceback)  # So we don't leave our local labels/objects dangling
-            print("unknow error while running data processing",traceback_details)
+        except Exception as e:
+            print("unknow error while running data processing",e)
 
 maker = MarketMaker()
 processer = DataProcess()
