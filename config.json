@@ -1,9 +1,11 @@
 
-[ {"client": "btc38","ACCESS_KEY":"1","SECRET_KEY":"2"},
 
-  {"client": "yunbi","ACCESS_KEY":"1","SECRET_KEY":"2"},
+[ {"client": "btc38","ACCESS_KEY":"aabbccddeeffgghi12345678","SECRET_KEY":"234567890wertydfghjkcvbnmrtyuifghjvbnm","ACCOUNT_ID":"32960"},
 
-  {"client": "bts", "ACCESS_KEY":"1","SECRET_KEY":"2"},
+  {"client": "yunbi","ACCESS_KEY":"sdfghjertyu45678vbn","SECRET_KEY":"WER6j578io45678dcfvbn5678dfghvbnrthvbrtyujfg"},
 
-  {"client": "mysql", "ACCESS_KEY":"1","SECRET_KEY":"2"}
-  ]
+  {"client": "bts", "ACCESS_KEY":"1","SECRET_KEY":"aassddffgghhjjkkll987654321", "ACCOUNT":"trans.bot", "WITNESS_URL": "wss://bitshares.dacplay.org:8089/ws"},
+
+  {"client": "mysql", "host":"rdscov8y5jidemh0x51v0.mysql.rds.aliyuncs.com","database":"botbase","user":"admin","password":"abcdefg"}
+
+]
