@@ -91,7 +91,7 @@ class Client():
         return self.get('trades', {'market': market}, True)
 
     def submitOrder(self,params):
-        return self.client.yunbiClient.post('orders', params)
+        return self.post('orders', params)
 
     def get_api_path(self,name):
         path_pattern = API_PATH_DICT[name]
