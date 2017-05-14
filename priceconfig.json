@@ -1,0 +1,43 @@
+{
+    "witness": "jerryliu",
+    "timer_minute": 2,
+    "asset_list": [
+        "SILVER", "GOLD", "CNY", "USD","EUR"],
+    "cli_wallet": {
+        "host" : "127.0.0.1",
+        "port" : 8095,
+        "user" : "",
+        "passwd" : "",
+        "unlock" : "$2017@BitUSD"
+    },
+    "price_limit": {
+        "common": "only update price feed when the change rate is between 1% ~ 50%",
+        "change_min": 1,
+        "change_max": 50,
+        "common": "spread bid price to price*(1+spread), ask price to price*(1-spread)",
+        "common": "excute the order book, get the real price",
+        "spread": 0.01,
+        "common": "we use the average price in this time",
+        "filter_minute": 30
+    },
+    "market_weight": {
+        "poloniex_btc": 1,
+        "yunbi_cny": 1,
+        "btc38_cny": 1,
+        "btc38_btc": 0,
+        "bter_cny": 0
+    },
+    "asset_config": {
+        "default": {
+            "core_exchange_factor": 1.01,
+            "maintenance_collateral_ratio": 1750,
+            "maximum_short_squeeze_ratio": 1100
+        }
+    },
+    "pusher": {
+        "common": "set enable to 1, if you want to subscribe data from pusher service",
+        "enable": "1",
+        "user": "",
+        "password": ""
+    }
+}
